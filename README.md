@@ -70,6 +70,56 @@ Use Docker Compose for local development:
 docker-compose up --build
 ```
 
+## Local Testing
+
+### Prerequisites
+- Docker and Docker Compose installed
+- Postman for API testing
+- FFmpeg installed locally (optional)
+
+### Running Locally
+
+1. Start the services:
+```bash
+chmod +x scripts/local-setup.sh
+./scripts/local-setup.sh
+```
+
+2. Import Postman Collection:
+   - Open Postman
+   - Import `postman/video-processor-api.json`
+   - The collection includes three endpoints:
+     - POST /process: Submit a video processing job
+     - GET /jobs/{job_id}: Get job status
+     - GET /jobs: List all jobs
+
+### Example API Calls
+
+1. Submit a video processing job:
+```json
+POST http://localhost:8080/process
+{
+  "input_url": "https://example.com/sample.mp4",
+  "resolutions": ["1080p", "720p", "480p"],
+  "job_id": "test-job-1"
+}
+```
+
+2. Check job status:
+```bash
+GET http://localhost:8080/jobs/test-job-1
+```
+
+3. List all jobs:
+```bash
+GET http://localhost:8080/jobs
+```
+
+### Testing with Sample Videos
+For testing, you can use these public domain test videos:
+- http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+- http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4
+
 ## Deployment
 
 1. Deploy infrastructure:
@@ -88,6 +138,53 @@ gcloud container clusters get-credentials video-processing-gcp
 ```bash
 kubectl apply -f k8s/
 ```
+
+## Credentials Management
+
+### AWS Credentials Setup
+1. Create AWS IAM user with appropriate permissions
+2. Configure AWS credentials:
+```bash
+aws configure
+# Or manually create credentials file:
+mkdir -p ~/.aws
+cat > ~/.aws/credentials << EOF
+[default]
+aws_access_key_id = YOUR_ACCESS_KEY
+aws_secret_access_key = YOUR_SECRET_KEY
+EOF
+```
+
+### GCP Credentials Setup
+1. Create a Service Account in GCP Console
+2. Download the JSON key file
+3. Store it securely:
+```bash
+mkdir -p credentials
+mv path/to/downloaded-key.json credentials/gcp-service-account.json
+```
+
+### Terraform Variables
+1. Copy the template:
+```bash
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+```
+2. Edit terraform.tfvars with your credentials
+
+### Kubernetes Secrets
+1. Create Kubernetes secrets for both clusters:
+```bash
+kubectl create secret generic cloud-credentials \
+  --from-file=aws-credentials=credentials/aws-credentials \
+  --from-file=gcp-credentials=credentials/gcp-service-account.json
+```
+
+### Security Best Practices
+- Never commit credentials to version control
+- Rotate credentials regularly
+- Use environment-specific credentials
+- Enable audit logging for all credential usage
+- Use HashiCorp Vault for production environments
 
 ## Monitoring and Scaling
 

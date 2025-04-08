@@ -1,0 +1,63 @@
+{
+  "info": {
+    "name": "Video Processor API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Submit Video Processing Job",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/process",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["process"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input_url\": \"https://example.com/sample.mp4\",\n  \"resolutions\": [\"1080p\", \"720p\", \"480p\"],\n  \"job_id\": \"{{$guid}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Job Status",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8080/jobs/{{job_id}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["jobs", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "List All Jobs",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8080/jobs",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["jobs"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "job_id",
+      "value": ""
+    }
+  ]
+}

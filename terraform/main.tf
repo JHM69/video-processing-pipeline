@@ -26,8 +26,8 @@ module "aws_eks" {
   cluster_name    = "video-processing-aws"
   vpc_cidr        = "10.0.0.0/16"
   instance_types  = ["t3.large"]
-  min_size        = 2
-  max_size        = 5
+  min_size        = 1
+  max_size        = 2
 }
 
 # GCP GKE Cluster
@@ -37,6 +37,6 @@ module "gcp_gke" {
   location       = var.gcp_region
   node_pool_name = "video-processing-pool"
   machine_type   = "n2-standard-2"
-  min_count      = 2
-  max_count      = 5
+  min_count      = 1
+  max_count      = 2
 }

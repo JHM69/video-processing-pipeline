@@ -1,0 +1,6 @@
+aws_access_key = "YOUR_AWS_ACCESS_KEY"
+aws_secret_key = "YOUR_AWS_SECRET_KEY"
+gcp_credentials_file = "../credentials/gcp-service-account.json"
+aws_region = "us-west-2"
+gcp_project_id = "your-project-id"
+gcp_region = "us-central1"

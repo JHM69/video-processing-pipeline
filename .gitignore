@@ -1,0 +1,16 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraformrc
+terraform.rc
+terraform.tfvars
+.terraform.lock.hcl
+
+# Credentials
+credentials/
+.env
+*.pem
+aws_credentials
+gcp-service-account.json
+kubeconfig
