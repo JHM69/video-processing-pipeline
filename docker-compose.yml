@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  video-processor:
+    build: 
+      context: ./src/video_processor
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - /tmp/videos:/tmp
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./k8s/nginx-lb.yaml:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - video-processor

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: video-processor
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: video-processor
+  template:
+    metadata:
+      labels:
+        app: video-processor
+    spec:
+      containers:
+      - name: video-processor
+        image: video-processor:latest
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: video-processor
+spec:
+  selector:
+    app: video-processor
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
