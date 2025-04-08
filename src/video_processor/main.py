@@ -1,19 +1,15 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional
 from enum import Enum
-from operator import attrgetter
-import subprocess
 import os
 import time
 from datetime import datetime
 import redis
 import json
 from multiprocessing import Process
-import signal
 import asyncio
-import shutil
 
 app = FastAPI()
 
