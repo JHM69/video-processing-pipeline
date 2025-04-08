@@ -35,22 +35,26 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # Create ECR repository if it doesn't exist
-        aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} || \
-        aws ecr create-repository --repository-name ${ECR_REPOSITORY}
-        
         # Build and push image
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./src/video_processor
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        
-        # Create k8s secret for ECR
+
+    - name: Configure kubectl for AWS EKS
+      run: |
+        aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+
+    - name: Create ECR Secret
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
         kubectl create secret docker-registry ecr-secret \
           --docker-server=$ECR_REGISTRY \
           --docker-username=AWS \
           --docker-password=$(aws ecr get-login-password) \
           --namespace=default \
+          --validate=false \
           --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Install Terraform
