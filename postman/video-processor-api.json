@@ -1,7 +1,8 @@
 {
   "info": {
     "name": "Video Processor API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "API for video processing with queue management"
   },
   "item": [
     {
@@ -25,7 +26,24 @@
           "mode": "raw",
           "raw": "{\n  \"input_url\": \"https://example.com/sample.mp4\",\n  \"resolutions\": [\"1080p\", \"720p\", \"480p\"],\n  \"job_id\": \"{{$guid}}\"\n}"
         }
-      }
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "http://localhost:8080/process"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"status\": \"Job queued\",\n  \"job_id\": \"{{job_id}}\",\n  \"position\": 0\n}"
+          }
+        }
+      ]
     },
     {
       "name": "Get Job Status",
@@ -52,12 +70,54 @@
           "path": ["jobs"]
         }
       }
+    },
+    {
+      "name": "Get Queue Status",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8080/queue",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["queue"]
+        }
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "status": "OK",
+          "code": 200,
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"active_jobs\": 1,\n  \"queued_jobs\": 2,\n  \"max_concurrent_jobs\": 2,\n  \"queue_position\": [\"job2\", \"job3\"]\n}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Download Processed Video",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8080/download/{{job_id}}/{{resolution}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["download", "{{job_id}}", "{{resolution}}"]
+        }
+      }
     }
   ],
   "variable": [
     {
       "key": "job_id",
       "value": ""
+    },
+    {
+      "key": "resolution",
+      "value": "1080p",
+      "description": "Available values: 4K, 1080p, 720p, 480p"
     }
   ]
 }

@@ -1,29 +1,29 @@
-FROM rust:1.70 as builder
+FROM python:3.11-slim
 
-# Install FFmpeg dependencies
-RUN apt-get update && apt-get install -y \
-    libavcodec-dev \
-    libavformat-dev \
-    libavfilter-dev \
-    libavdevice-dev \
-    pkg-config
-
-WORKDIR /usr/src/app
-COPY . .
-RUN cargo build --release
-
-FROM debian:bullseye-slim
-
-# Install runtime FFmpeg dependencies
+# Install FFmpeg and other dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
-    libavcodec58 \
-    libavformat58 \
-    libavfilter7 \
-    libavdevice58 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/src/app/target/release/video_processor /usr/local/bin/
+# Create a non-root user
+RUN useradd -m -u 1000 appuser
 
+# Create and set permissions for temporary directory
+RUN mkdir -p /tmp/videos && \
+    chown -R appuser:appuser /tmp/videos
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+RUN chown -R appuser:appuser /app
+
+USER appuser
 EXPOSE 8080
-CMD ["video_processor"]
+
+CMD ["python", "main.py"]

@@ -2,9 +2,6 @@ use tokio;
 use warp::Filter;
 use serde::{Deserialize, Serialize};
 use ffmpeg_next as ffmpeg;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Deserialize, Serialize)]
 struct VideoJob {
@@ -31,131 +28,29 @@ impl Resolution {
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
-struct VideoResult {
-    resolution: String,
-    download_url: String,
-    size_bytes: u64,
-}
-
-#[derive(Debug, Serialize, Clone)]
-struct JobStatus {
-    job_id: String,
-    status: String, // "processing", "completed", "failed"
-    input_url: String,
-    results: Vec<VideoResult>,
-    error: Option<String>,
-}
-
-type JobStore = Arc<RwLock<HashMap<String, JobStatus>>>;
-
 #[tokio::main]
 async fn main() {
     ffmpeg::init().unwrap();
-
-    // Initialize job store
-    let jobs: JobStore = Arc::new(RwLock::new(HashMap::new()));
-    let jobs_clone = jobs.clone();
-
-    // Job submission endpoint
+ 
     let process_video = warp::post()
         .and(warp::path("process"))
         .and(warp::body::json())
-        .and(with_jobs(jobs.clone()))
-        .map(|job: VideoJob, jobs: JobStore| {
-            let jobs_clone = jobs.clone();
+        .map(|job: VideoJob| {
             tokio::spawn(async move {
-                process_video_job(job, jobs_clone).await;
+                process_video_job(job).await;
             });
             warp::reply::json(&"Job accepted")
         });
 
-    // Get job status endpoint
-    let get_job = warp::get()
-        .and(warp::path("jobs"))
-        .and(warp::path::param::<String>())
-        .and(with_jobs(jobs.clone()))
-        .and_then(get_job_status);
-
-    // Get all jobs endpoint
-    let list_jobs = warp::get()
-        .and(warp::path("jobs"))
-        .and(with_jobs(jobs.clone()))
-        .and_then(list_all_jobs);
-
-    let routes = process_video
-        .or(get_job)
-        .or(list_jobs)
-        .with(warp::cors().allow_any_origin());
-
-    warp::serve(routes)
+    warp::serve(process_video)
         .run(([0, 0, 0, 0], 8080))
         .await;
 }
 
-fn with_jobs(jobs: JobStore) -> impl Filter<Extract = (JobStore,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || jobs.clone())
-}
-
-async fn get_job_status(job_id: String, jobs: JobStore) -> Result<impl warp::Reply, warp::Rejection> {
-    let jobs = jobs.read().await;
-    match jobs.get(&job_id) {
-        Some(status) => Ok(warp::reply::json(status)),
-        None => Err(warp::reject::not_found()),
-    }
-}
-
-async fn list_all_jobs(jobs: JobStore) -> Result<impl warp::Reply, warp::Rejection> {
-    let jobs = jobs.read().await;
-    Ok(warp::reply::json(&*jobs))
-}
-
-async fn process_video_job(job: VideoJob, jobs: JobStore) {
-    let job_id = job.job_id.clone();
-    
-    // Initialize job status
-    {
-        let mut jobs = jobs.write().await;
-        jobs.insert(job_id.clone(), JobStatus {
-            job_id: job_id.clone(),
-            status: "processing".to_string(),
-            input_url: job.input_url.clone(),
-            results: Vec::new(),
-            error: None,
-        });
-    }
-
-    let mut results = Vec::new();
-    
+async fn process_video_job(job: VideoJob) {
     for resolution in job.resolutions {
-        let output_path = format!("/tmp/{}_{}_{}.mp4", job.job_id, resolution, chrono::Utc::now().timestamp());
-        match convert_video(&job.input_url, &output_path, &resolution) {
-            Ok(()) => {
-                // Get file size
-                if let Ok(metadata) = std::fs::metadata(&output_path) {
-                    results.push(VideoResult {
-                        resolution: resolution.clone(),
-                        download_url: format!("/videos/{}/{}", job_id, resolution),
-                        size_bytes: metadata.len(),
-                    });
-                }
-            }
-            Err(e) => {
-                let mut jobs = jobs.write().await;
-                if let Some(status) = jobs.get_mut(&job_id) {
-                    status.status = "failed".to_string();
-                    status.error = Some(e.to_string());
-                }
-                return;
-            }
-        }
-    }
-
-    // Update job status with results
-    let mut jobs = jobs.write().await;
-    if let Some(status) = jobs.get_mut(&job_id) {
-        status.status = "completed".to_string();
-        status.results = results;
+        let output_path = format!("/tmp/{}_{}_{}.mp4", job.job_id, resolution);
+        convert_video(&job.input_url, &output_path, &resolution).unwrap();
     }
 }
 
