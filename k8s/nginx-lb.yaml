@@ -9,14 +9,26 @@ data:
     }
     http {
       upstream video_processors {
-        server aws-processor.default.svc.cluster.local:8080;
-        server gcp-processor.default.svc.cluster.local:8080;
+        server video-processor.default.svc.cluster.local:8080;
+        keepalive 32;
       }
+
       server {
         listen 80;
         location / {
           proxy_pass http://video_processors;
-          proxy_next_upstream error timeout invalid_header http_500;
+          proxy_http_version 1.1;
+          proxy_set_header Connection "";
+          proxy_next_upstream error timeout http_500 http_502 http_503 http_504;
+          proxy_next_upstream_tries 3;
+          proxy_connect_timeout 5s;
+          proxy_send_timeout 60s;
+          proxy_read_timeout 60s;
+        }
+
+        location /health {
+          access_log off;
+          return 200 "healthy\n";
         }
       }
     }
