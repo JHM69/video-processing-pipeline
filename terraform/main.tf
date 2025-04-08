@@ -49,6 +49,7 @@ module "gcp_gke" {
 resource "aws_ecr_repository" "video_processor" {
   name                 = "video-processor-app"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true  # Allow deleting the repository with images
 
   image_scanning_configuration {
     scan_on_push = true
@@ -58,6 +59,29 @@ resource "aws_ecr_repository" "video_processor" {
     Environment = "production"
     Service     = "video-processing"
   }
+}
+
+# Add lifecycle policy to manage images
+resource "aws_ecr_lifecycle_policy" "video_processor_policy" {
+  repository = aws_ecr_repository.video_processor.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 images"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 }
 
 resource "aws_ecr_repository_policy" "video_processor_policy" {

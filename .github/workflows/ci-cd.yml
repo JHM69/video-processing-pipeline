@@ -8,7 +8,7 @@ on:
 
 env:
   AWS_REGION: us-west-2
-  ECR_REPOSITORY: video-processor
+  ECR_REPOSITORY: video-processor-app
   EKS_CLUSTER_NAME: video-processing-aws
   GKE_CLUSTER_NAME: video-processing-gcp
   GCP_REGION: us-central1
@@ -33,17 +33,15 @@ jobs:
     - name: Build and push Docker image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: video-processor-app
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # Get AWS account ID
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        # Create ECR repository if it doesn't exist
+        aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} || \
+        aws ecr create-repository --repository-name ${ECR_REPOSITORY}
         
-        # Build and tag image
+        # Build and push image
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./src/video_processor
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        
-        # Push images
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
