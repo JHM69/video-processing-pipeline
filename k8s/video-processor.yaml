@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: video-processor
-        image: video-processor:latest
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/video-processor-app:latest
         imagePullPolicy: Always
         env:
         - name: CLOUD_PROVIDER
@@ -42,6 +42,8 @@ spec:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 20
+      imagePullSecrets:
+      - name: ecr-secret
 ---
 apiVersion: v1
 kind: Service

@@ -47,12 +47,38 @@ module "gcp_gke" {
 
 # ECR Repository
 resource "aws_ecr_repository" "video_processor" {
-  name                 = "video-processor"
+  name                 = "video-processor-app"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
   }
+
+  tags = {
+    Environment = "production"
+    Service     = "video-processing"
+  }
+}
+
+resource "aws_ecr_repository_policy" "video_processor_policy" {
+  repository = aws_ecr_repository.video_processor.name
+  policy     = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowPull"
+        Effect = "Allow"
+        Principal = {
+          AWS = ["*"]
+        }
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ]
+      }
+    ]
+  })
 }
 
 # Output the cluster endpoints

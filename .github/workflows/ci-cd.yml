@@ -33,11 +33,27 @@ jobs:
     - name: Build and push Docker image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: video-processor-app
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ./src/video_processor
+        # Get AWS account ID
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        
+        # Build and tag image
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./src/video_processor
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        # Push images
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        # Create k8s secret for ECR
+        kubectl create secret docker-registry ecr-secret \
+          --docker-server=$ECR_REGISTRY \
+          --docker-username=AWS \
+          --docker-password=$(aws ecr get-login-password) \
+          --namespace=default \
+          --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Install Terraform
       uses: hashicorp/setup-terraform@v1
