@@ -15,12 +15,6 @@ variable "gcp_credentials_file" {
   type        = string
 }
 
-provider "aws" {
-  access_key = var.aws_access_key
-  secret_key = var.aws_secret_key
-  region     = var.aws_region
-}
-
 provider "google" {
   credentials = file(var.gcp_credentials_file)
   project     = var.gcp_project_id

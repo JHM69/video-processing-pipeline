@@ -4,7 +4,8 @@
 *.tfstate.*
 .terraformrc
 terraform.rc
-terraform.tfvars
+*.tfvars
+!terraform.tfvars.example
 .terraform.lock.hcl
 
 # Credentials

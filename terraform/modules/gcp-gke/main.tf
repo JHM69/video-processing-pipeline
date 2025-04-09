@@ -6,6 +6,11 @@ resource "google_container_cluster" "main" {
   initial_node_count       = 1
 
   networking_mode = "VPC_NATIVE"
+
+  ip_allocation_policy {
+    cluster_ipv4_cidr_block  = "/16"
+    services_ipv4_cidr_block = "/22"
+  }
 }
 
 resource "google_container_node_pool" "main" {

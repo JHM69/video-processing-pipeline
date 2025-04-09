@@ -16,10 +16,10 @@ module "aws_eks" {
   source          = "./modules/aws-eks"
   cluster_name    = "video-processing-aws"
   vpc_cidr        = "10.0.0.0/16"
-  instance_types  = ["t3.large"]
+  instance_types  = ["t3.small"]  # Changed from t3.large to t3.small
   min_size        = 1
-  max_size        = 3
-  desired_size    = 2
+  max_size        = 2             # Reduced from 3 to 2
+  desired_size    = 1             # Reduced from 2 to 1
   cluster_version = "1.27"
   
   tags = {

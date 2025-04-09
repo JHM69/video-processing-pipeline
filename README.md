@@ -6,6 +6,7 @@ A distributed video processing system deployed across multiple cloud providers (
 
 This system implements a scalable video processing service that runs across AWS EKS and Google GKE clusters, with NGINX handling load balancing between clouds.
 
+ 
 ### Components
 
 - **Video Processor Service**: Rust-based service for video transcoding
