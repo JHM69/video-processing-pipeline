@@ -1,0 +1,180 @@
+{
+	"info": {
+		"_postman_id": "3166804b-371d-45b1-9daf-c0f452f2328c",
+		"name": "Video Processor API",
+		"description": "API for video processing with queue management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15584278"
+	},
+	"item": [
+		{
+			"name": "Submit Video Processing Job",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"input_url\": \"https://res.cloudinary.com/dwiihhpnf/video/upload/f_auto:video,q_auto/class9\",\n  \"resolutions\": [\"1080p\", \"720p\", \"480p\"],\n  \"job_id\": \"{{$guid}}\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/process",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"process"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Job Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/jobs/{{job_id}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"jobs",
+						"{{job_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List All Jobs",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/jobs",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"jobs"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Queue Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/queue",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"queue"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Download Processed Video",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/download/{{job_id}}/{{resolution}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"download",
+						"{{job_id}}",
+						"{{resolution}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Clear All",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"input_url\": \"https://res.cloudinary.com/dwiihhpnf/video/upload/f_auto:video,q_auto/class9\",\n  \"resolutions\": [\"1080p\", \"720p\", \"480p\"],\n  \"job_id\": \"{{$guid}}\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/process",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"process"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/download/eb07ecd9-d624-4523-a610-0dcd8816919b/720p",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/download/eb07ecd9-d624-4523-a610-0dcd8816919b/720p",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"download",
+						"eb07ecd9-d624-4523-a610-0dcd8816919b",
+						"720p"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "job_id",
+			"value": ""
+		},
+		{
+			"key": "resolution",
+			"value": "1080p"
+		}
+	]
+}

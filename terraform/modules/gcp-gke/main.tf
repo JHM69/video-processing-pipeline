@@ -20,11 +20,9 @@ resource "google_container_node_pool" "main" {
 
   node_config {
     machine_type = var.machine_type
-
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
-
     labels = var.labels
   }
 
