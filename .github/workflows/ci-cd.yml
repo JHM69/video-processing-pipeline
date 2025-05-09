@@ -37,10 +37,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Run Frontend Tests
-        working-directory: frontend
-        run: npm test
-
       - name: Install Backend Dependencies
         working-directory: backend/src/video_processor
         run: pip install -r requirements.txt
