@@ -51,6 +51,21 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
 
+      - name: Create Container Registry repositories
+        run: |
+          # Create repositories if they don't exist
+          gcloud container images describe gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-frontend || \
+            gcloud artifacts repositories create video-processor-frontend \
+              --repository-format=docker \
+              --location=us-central1 \
+              --description="Frontend container repository"
+              
+          gcloud container images describe gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-backend || \
+            gcloud artifacts repositories create video-processor-backend \
+              --repository-format=docker \
+              --location=us-central1 \
+              --description="Backend container repository"
+
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v1
         with:
