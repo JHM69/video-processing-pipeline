@@ -1,17 +1,68 @@
+# Credentials and secrets
+/credentials
+*.pem
+*.key
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+out/
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.bak
+
 # Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfvars
+!terraform.tfvars
 .terraformrc
 terraform.rc
-*.tfvars
-!terraform.tfvars.example
-.terraform.lock.hcl
 
-# Credentials
-credentials/
-.env
-*.pem
-aws_credentials
-gcp-service-account.json
-kubeconfig
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Project specific
+/video_storage/
+tmp/
+logs/
+*.log
+processed_videos/
+uploads/

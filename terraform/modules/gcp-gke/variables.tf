@@ -1,36 +1,49 @@
-variable "cluster_name" {
-  type = string
+variable "project_id" {
+  description = "GCP Project ID"
+  type        = string
 }
 
-variable "location" {
-  type = string
+variable "region" {
+  description = "GCP Region"
+  type        = string
+}
+
+variable "cluster_name" {
+  description = "Name of the GKE cluster"
+  type        = string
 }
 
 variable "node_pool_name" {
-  type = string
+  description = "Name of the node pool"
+  type        = string
 }
 
 variable "machine_type" {
-  type = string
+  description = "Machine type for the nodes"
+  type        = string
 }
 
-variable "min_count" {
-  type = number
+variable "min_node_count" {
+  description = "Minimum number of nodes in the pool"
+  type        = number
 }
 
-variable "max_count" {
-  type = number
+variable "max_node_count" {
+  description = "Maximum number of nodes in the pool"
+  type        = number
 }
 
-variable "initial_count" {
-  type = number
+variable "network" {
+  description = "VPC network name"
+  type        = string
 }
 
-variable "labels" {
-  type = map(string)
+variable "subnetwork" {
+  description = "VPC subnetwork name"
+  type        = string
 }
 
-variable "project_id" {
-  description = "GCP Project ID"
+variable "service_account" {
+  description = "Service account email"
   type        = string
 }

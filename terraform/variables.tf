@@ -1,22 +1,32 @@
-variable "aws_region" {
-  description = "AWS region for infrastructure"
-  type        = string
-  default     = "us-west-2"
-}
-
-variable "gcp_project_id" {
-  description = "GCP project ID"
+variable "credentials_file" {
+  description = "Path to the GCP credentials JSON file"
   type        = string
 }
 
-variable "gcp_region" {
-  description = "GCP region for infrastructure"
+variable "project_id" {
+  description = "GCP Project ID"
+  type        = string
+}
+
+variable "region" {
+  description = "GCP Region"
   type        = string
   default     = "us-central1"
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (e.g., production, staging)"
   type        = string
-  default     = "production"
+}
+
+variable "cluster_name" {
+  description = "Name of the GKE cluster"
+  type        = string
+  default     = "video-processor-cluster"
+}
+
+variable "domain_name" {
+  description = "Domain name for the application"
+  type        = string
+  default     = "example.com"
 }

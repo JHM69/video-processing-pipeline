@@ -2,6 +2,34 @@
 
 A distributed video processing system deployed across multiple cloud providers (AWS and GCP) with intelligent load balancing.
 
+## Project Structure
+
+```
+video-processing-pipeline/
+├── frontend/                 # Next.js frontend application
+│   ├── src/                 # Source code
+│   │   ├── app/            # Next.js app directory
+│   │   ├── components/     # React components
+│   │   └── services/       # API services
+│   ├── public/             # Static files
+│   └── package.json        # Frontend dependencies
+│
+├── backend/                 # Python backend application
+│   ├── src/                # Source code
+│   │   └── video_processor/ # Video processing service
+│   │       ├── main.py     # Main application
+│   │       ├── worker.py   # Worker process
+│   │       └── Dockerfile  # Container configuration
+│   ├── config/             # Configuration files
+│   ├── k8s/               # Kubernetes manifests
+│   ├── terraform/         # Infrastructure as Code
+│   ├── postman/           # API testing collections
+│   ├── scripts/           # Utility scripts
+│   └── docker-compose.yml # Local development setup
+│
+└── README.md              # Project documentation
+```
+
 ## Architecture Overview
 
 This system implements a scalable video processing service that runs across AWS EKS and Google GKE clusters, with NGINX handling load balancing between clouds.

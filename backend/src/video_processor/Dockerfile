@@ -4,6 +4,7 @@ FROM python:3.9-slim
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -19,9 +20,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create video storage directory
+# Create video storage directory and set permissions
 RUN mkdir -p /tmp/videos && \
     chown -R appuser:appuser /app /tmp/videos
+
+# Create supervisor configuration
+RUN mkdir -p /var/log/supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Switch to non-root user
 USER appuser
@@ -29,5 +34,5 @@ USER appuser
 # Expose port
 EXPOSE 8080
 
-# Run the application
-CMD ["python", "main.py"]
+# Run supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

@@ -1,20 +1,51 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from enum import Enum
+from google.cloud import storage
+from google.cloud.storage.blob import Blob
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import redis
 import json
 from multiprocessing import Process
 import asyncio
+import uuid
+import aiofiles
 
 app = FastAPI()
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins during development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Video storage path
+UPLOAD_DIR = os.path.abspath("videos")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 # Maximum number of concurrent jobs
 MAX_CONCURRENT_JOBS = 2
+
+# GCS Configuration
+BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'video-processor-storage')
+storage_client = storage.Client()
+
+try:
+    bucket = storage_client.get_bucket(BUCKET_NAME)
+except Exception:
+    bucket = storage_client.create_bucket(BUCKET_NAME)
+
+# Temporary storage for upload processing
+TEMP_DIR = "/tmp/video-processor"
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 def get_redis_client():
     redis_host = os.getenv('REDIS_HOST', 'localhost')
@@ -233,15 +264,22 @@ async def download_video(job_id: str, resolution: str):
     if job_status["conversions"][resolution]["status"] != "completed":
         raise HTTPException(status_code=400, detail="Video conversion not completed")
     
-    file_path = f"/tmp/videos/{job_id}_{resolution}.mp4"
-    if not os.path.exists(file_path):
+    # Generate signed URL for the processed video
+    blob_name = f"processed/{job_id}/{resolution}.mp4"
+    blob = bucket.blob(blob_name)
+    
+    if not blob.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
     
-    return FileResponse(
-        file_path,
-        media_type="video/mp4",
-        filename=f"{job_id}_{resolution}.mp4"
+    # Generate signed URL with 1 hour expiration
+    signed_url = blob.generate_signed_url(
+        version="v4",
+        expiration=timedelta(hours=1),
+        method="GET"
     )
+    
+    # Redirect to the signed URL
+    return RedirectResponse(url=signed_url)
 
 @app.get("/health")
 async def health_check():
@@ -330,17 +368,19 @@ async def startup_event():
     global redis_client
     redis_client = get_redis_client()
     
-    # Ensure video directory exists
-    os.makedirs("/tmp/videos", exist_ok=True)
+    # Ensure temp directory exists
+    os.makedirs(TEMP_DIR, exist_ok=True)
     
-    # Start worker process first
+    # Start worker process
     app.state.worker_process = start_worker_process()
     
-    # Then start background task for job queue monitoring
+    # Start background task for job queue monitoring
     app.state.background_tasks = set()
     task = asyncio.create_task(process_next_job())
     app.state.background_tasks.add(task)
     task.add_done_callback(app.state.background_tasks.discard)
+    
+    print("Backend startup complete: Redis connected, GCS configured, worker started")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -353,6 +393,77 @@ async def shutdown_event():
     if hasattr(app.state, 'worker_process'):
         app.state.worker_process.terminate()
         app.state.worker_process.join()
+
+@app.post("/upload")
+async def upload_video(
+    video: UploadFile = File(...),
+    resolutions: str = Form(...),
+    cloudProvider: str = Form(...)
+):
+    try:
+        # Generate unique filename with original extension
+        file_extension = os.path.splitext(video.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        temp_path = os.path.join(TEMP_DIR, unique_filename)
+
+        # Save temporarily
+        async with aiofiles.open(temp_path, 'wb') as out_file:
+            content = await video.read()
+            await out_file.write(content)
+
+        # Upload to GCS
+        blob = bucket.blob(f"uploads/{unique_filename}")
+        blob.upload_from_filename(temp_path)
+        
+        # Clean up temp file
+        os.remove(temp_path)
+
+        # Generate signed URL for processing
+        gcs_url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=24),
+            method="GET"
+        )
+
+        # Parse resolutions
+        resolution_list = json.loads(resolutions)
+
+        # Create job
+        job_id = str(uuid.uuid4())
+        job_status = {
+            "job_id": job_id,
+            "status": JobStatus.PENDING.value,
+            "started_at": datetime.now().isoformat(),
+            "conversions": {
+                res: {
+                    "resolution": res,
+                    "status": "pending",
+                    "progress": 0
+                } for res in resolution_list
+            },
+            "job_data": {
+                "input_url": gcs_url,
+                "gcs_path": f"uploads/{unique_filename}",
+                "resolutions": resolution_list,
+                "cloud_provider": cloudProvider
+            }
+        }
+
+        # Store job status in Redis
+        redis_client.set(f"job:{job_id}", json.dumps(job_status))
+        redis_client.lpush("job_queue", job_id)
+
+        return {
+            "taskId": job_id,
+            "message": "Video uploaded successfully",
+            "status": "pending"
+        }
+
+    except Exception as e:
+        # Clean up temp file if it exists
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
+  namespace: video-processor
 spec:
   selector:
     matchLabels:
       app: redis
-  replicas: 1
   template:
     metadata:
       labels:
@@ -19,24 +19,25 @@ spec:
         - containerPort: 6379
         resources:
           limits:
-            cpu: "0.5"
+            cpu: "500m"
             memory: "512Mi"
           requests:
-            cpu: "0.2"
+            cpu: "200m"
             memory: "256Mi"
         livenessProbe:
-          exec:
-            command: ["redis-cli", "ping"]
+          tcpSocket:
+            port: 6379
           initialDelaySeconds: 15
           periodSeconds: 20
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-service
+  name: redis
+  namespace: video-processor
 spec:
   selector:
     app: redis
   ports:
-  - port: 6379
-    targetPort: 6379
+    - port: 6379
+      targetPort: 6379

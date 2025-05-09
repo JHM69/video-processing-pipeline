@@ -1,121 +1,166 @@
 terraform {
+  required_version = ">= 1.0"
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
     google = {
       source  = "hashicorp/google"
       version = "~> 4.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
   }
 }
 
-# AWS EKS Cluster
-module "aws_eks" {
-  source          = "./modules/aws-eks"
-  cluster_name    = "video-processing-aws"
-  vpc_cidr        = "10.0.0.0/16"
-  instance_types  = ["t3.micro"]
-  min_size        = 1
-  max_size        = 1
-  desired_size    = 1
-  cluster_version = "1.27"
+provider "google" {
+  credentials = file(var.credentials_file)
+  project     = var.project_id
+  region      = var.region
+}
+
+# Configure kubernetes provider after cluster creation
+provider "kubernetes" {
+  host                   = "https://${module.gke_cluster.endpoint}"
+  token                  = data.google_client_config.current.access_token
+  cluster_ca_certificate = base64decode(module.gke_cluster.cluster_ca_certificate)
+}
+
+data "google_client_config" "current" {}
+
+# Create service accounts first
+resource "google_service_account" "gke_sa" {
+  account_id   = "gke-service-account"
+  display_name = "GKE Service Account"
+}
+
+resource "google_service_account" "video_processor" {
+  account_id   = "video-processor"
+  display_name = "Video Processor Service Account"
+}
+
+# Grant necessary IAM roles to service accounts
+resource "google_project_iam_member" "gke_sa_roles" {
+  for_each = toset([
+    "roles/container.nodeServiceAccount",
+    "roles/storage.objectViewer"
+  ])
+  project = var.project_id
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.gke_sa.email}"
+}
+
+resource "google_project_iam_member" "video_processor_roles" {
+  for_each = toset([
+    "roles/storage.objectViewer",
+    "roles/storage.objectCreator"
+  ])
+  project = var.project_id
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.video_processor.email}"
+}
+
+# Create network infrastructure
+resource "google_compute_network" "vpc" {
+  name                    = "video-processor-vpc"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "subnet" {
+  name          = "video-processor-subnet"
+  ip_cidr_range = "10.0.0.0/16"
+  region        = var.region
+  network       = google_compute_network.vpc.name
+
+  secondary_ip_range {
+    range_name    = "services-range"
+    ip_cidr_range = "192.168.0.0/20"
+  }
+
+  secondary_ip_range {
+    range_name    = "pod-range"
+    ip_cidr_range = "192.168.16.0/20"
+  }
+}
+
+# Create GCS bucket
+resource "google_storage_bucket" "video_storage" {
+  name          = "${var.project_id}-video-processor-storage"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  uniform_bucket_level_access = true
   
-  tags = {
-    Environment = "production"
-    Service     = "video-processing"
-  }
-}
-
-# GCP GKE Cluster
-module "gcp_gke" {
-  source         = "./modules/gcp-gke"
-  cluster_name   = "video-processing-gcp"
-  location       = var.gcp_region
-  project_id     = var.gcp_project_id
-  node_pool_name = "video-processing-pool"
-  machine_type   = "e2-medium"    # Changed to e2-medium for better compatibility
-  min_count      = 1
-  max_count      = 1
-  initial_count  = 1
-  
-  labels = {
-    environment = "production"
-    service     = "video-processing"
-  }
-}
-
-# ECR Repository
-resource "aws_ecr_repository" "video_processor" {
-  name                 = "video-processor-app"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true  # Allow deleting the repository with images
-
-  image_scanning_configuration {
-    scan_on_push = true
+  lifecycle_rule {
+    condition {
+      age = 7
+    }
+    action {
+      type = "Delete"
+    }
   }
 
-  tags = {
-    Environment = "production"
-    Service     = "video-processing"
+  depends_on = [
+    google_project_iam_member.video_processor_roles
+  ]
+}
+
+# Create GKE cluster
+module "gke_cluster" {
+  source = "./modules/gcp-gke"
+
+  project_id       = var.project_id
+  region          = var.region
+  cluster_name    = var.cluster_name
+  node_pool_name  = "video-processor-pool"
+  machine_type    = "e2-standard-2"
+  min_node_count  = 1
+  max_node_count  = 5
+  network         = google_compute_network.vpc.name
+  subnetwork      = google_compute_subnetwork.subnet.name
+  service_account = google_service_account.gke_sa.email
+
+  depends_on = [
+    google_project_iam_member.gke_sa_roles
+  ]
+}
+
+# Configure workload identity
+resource "google_service_account_iam_binding" "workload_identity_binding" {
+  service_account_id = google_service_account.video_processor.name
+  role               = "roles/iam.workloadIdentityUser"
+  members = [
+    "serviceAccount:${var.project_id}.svc.id.goog[video-processor/video-processor-sa]"
+  ]
+
+  depends_on = [
+    google_service_account.video_processor,
+    module.gke_cluster
+  ]
+}
+
+# Create Kubernetes namespace
+resource "kubernetes_namespace" "video_processor" {
+  metadata {
+    name = "video-processor"
   }
+
+  depends_on = [
+    module.gke_cluster
+  ]
 }
 
-# Add lifecycle policy to manage images
-resource "aws_ecr_lifecycle_policy" "video_processor_policy" {
-  repository = aws_ecr_repository.video_processor.name
+# Create ConfigMap
+resource "kubernetes_config_map" "gcp_config" {
+  metadata {
+    name      = "gcp-config"
+    namespace = "video-processor"
+  }
 
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Keep last 10 images"
-        selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["v"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 10
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
-}
+  data = {
+    "project-id" = var.project_id
+  }
 
-resource "aws_ecr_repository_policy" "video_processor_policy" {
-  repository = aws_ecr_repository.video_processor.name
-  policy     = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowPull"
-        Effect = "Allow"
-        Principal = {
-          AWS = ["*"]
-        }
-        Action = [
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-          "ecr:BatchCheckLayerAvailability"
-        ]
-      }
-    ]
-  })
-}
-
-# Output the cluster endpoints
-output "aws_eks_endpoint" {
-  value = module.aws_eks.cluster_endpoint
-}
-
-output "gcp_gke_endpoint" {
-  value = module.gcp_gke.cluster_endpoint
-}
-
-# Output ECR repository URL
-output "ecr_repository_url" {
-  value = aws_ecr_repository.video_processor.repository_url
+  depends_on = [
+    kubernetes_namespace.video_processor
+  ]
 }
