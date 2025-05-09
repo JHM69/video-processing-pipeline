@@ -41,19 +41,24 @@ jobs:
         working-directory: backend/src/video_processor
         run: pip install -r requirements.txt
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v1
         with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Configure GCP credentials
-        run: |
-          echo "${{ secrets.GCP_SA_KEY }}" > /tmp/sa-key.json
-          gcloud auth activate-service-account --key-file=/tmp/sa-key.json
-          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} --zone ${{ env.GKE_ZONE }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
 
       - name: Configure Docker for GCR
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker --quiet
 
       - name: Build Frontend Image
         run: |
@@ -84,16 +89,21 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v1
         with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Configure GCP credentials
-        run: |
-          echo "${{ secrets.GCP_SA_KEY }}" > /tmp/sa-key.json
-          gcloud auth activate-service-account --key-file=/tmp/sa-key.json
-          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} --zone ${{ env.GKE_ZONE }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
 
       - name: Update Kubernetes Manifests
         run: |
