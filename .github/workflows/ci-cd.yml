@@ -143,13 +143,45 @@ jobs:
 
       - name: Verify Deployment
         run: |
-          kubectl wait --for=condition=ready pod -l app=frontend --timeout=300s -n video-processor
-          kubectl wait --for=condition=ready pod -l app=backend --timeout=300s -n video-processor
-          kubectl wait --for=condition=ready pod -l app=redis --timeout=300s -n video-processor
+          echo "Checking pod status..."
+          kubectl get pods -n video-processor
+          
+          echo "\nChecking pod logs for frontend..."
+          kubectl logs -l app=frontend -n video-processor --tail=50 || true
+          
+          echo "\nChecking pod events..."
+          kubectl get events -n video-processor --sort-by='.lastTimestamp'
+          
+          echo "\nWaiting for redis deployment..."
+          kubectl wait --for=condition=ready pod -l app=redis --timeout=300s -n video-processor || {
+            echo "Redis pods not ready. Checking redis pods status:"
+            kubectl describe pods -l app=redis -n video-processor
+          }
+          
+          echo "\nWaiting for backend deployment..."
+          kubectl wait --for=condition=ready pod -l app=backend --timeout=300s -n video-processor || {
+            echo "Backend pods not ready. Checking backend pods status:"
+            kubectl describe pods -l app=backend -n video-processor
+          }
+          
+          echo "\nWaiting for frontend deployment..."
+          kubectl wait --for=condition=ready pod -l app=frontend --timeout=600s -n video-processor || {
+            echo "Frontend pods not ready. Checking frontend pods status:"
+            kubectl describe pods -l app=frontend -n video-processor
+            echo "\nChecking frontend deployment status:"
+            kubectl describe deployment frontend -n video-processor
+            exit 1
+          }
+          
+          echo "All deployments verified successfully!"
 
       - name: Get Frontend Service Address
+        if: success()
         run: |
-          echo "Waiting for Load Balancer to be ready..."
+          echo "Checking frontend service configuration..."
+          kubectl describe service frontend -n video-processor
+          
+          echo "\nWaiting for Load Balancer to be ready..."
           # Wait for Load Balancer to get external IP (timeout after 5 minutes)
           for i in {1..30}; do
             FRONTEND_IP=$(kubectl get service frontend -n video-processor -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -162,12 +194,16 @@ jobs:
 
           if [ -z "$FRONTEND_IP" ]; then
             echo "::warning::Couldn't get LoadBalancer IP after 5 minutes"
+            echo "Current service status:"
+            kubectl get service frontend -n video-processor -o yaml
           else
             echo "Frontend is accessible at: http://$FRONTEND_IP"
           fi
-
+          
           # Also check for any Ingress
           if kubectl get ingress -n video-processor &>/dev/null; then
+            echo "\nChecking Ingress configuration..."
+            kubectl describe ingress -n video-processor
             INGRESS_HOST=$(kubectl get ingress -n video-processor -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
             if [ ! -z "$INGRESS_HOST" ]; then
               echo "Frontend is also accessible via Ingress at: http://$INGRESS_HOST"
