@@ -51,29 +51,25 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
 
-      - name: Create Container Registry repositories
+      - name: Configure Docker and Container Registry
         run: |
-          # Create repositories if they don't exist
-          gcloud container images describe gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-frontend || \
-            gcloud artifacts repositories create video-processor-frontend \
-              --repository-format=docker \
-              --location=us-central1 \
-              --description="Frontend container repository"
-              
-          gcloud container images describe gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-backend || \
-            gcloud artifacts repositories create video-processor-backend \
-              --repository-format=docker \
-              --location=us-central1 \
-              --description="Backend container repository"
+          gcloud auth configure-docker --quiet
+          
+          # Enable required APIs if not already enabled
+          gcloud services enable containerregistry.googleapis.com
+          gcloud services enable artifactregistry.googleapis.com
+          
+          # Try to use Container Registry first (gcr.io)
+          if ! gcloud container images list --repository=gcr.io/${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+            echo "Setting up Container Registry..."
+            gcloud container images list --repository=gcr.io/${{ secrets.GCP_PROJECT_ID }} >/dev/null 2>&1 || true
+          fi
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v1
         with:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_ZONE }}
-
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker --quiet
 
       - name: Build Frontend Image
         run: |
