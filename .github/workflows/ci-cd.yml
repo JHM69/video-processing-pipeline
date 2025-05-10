@@ -53,17 +53,29 @@ jobs:
 
       - name: Configure Docker and Container Registry
         run: |
+          # Configure Docker authentication
           gcloud auth configure-docker --quiet
           
-          # Enable required APIs if not already enabled
-          gcloud services enable containerregistry.googleapis.com
-          gcloud services enable artifactregistry.googleapis.com
+          # Check if APIs are already enabled
+          if ! gcloud services list --enabled --filter="name:containerregistry.googleapis.com" --format="value(name)" | grep -q "containerregistry.googleapis.com"; then
+            echo "Container Registry API is not enabled. Attempting to enable..."
+            gcloud services enable containerregistry.googleapis.com || echo "Warning: Could not enable Container Registry API. Please ensure it's enabled manually or the service account has necessary permissions."
+          fi
           
-          # Try to use Container Registry first (gcr.io)
+          if ! gcloud services list --enabled --filter="name:artifactregistry.googleapis.com" --format="value(name)" | grep -q "artifactregistry.googleapis.com"; then
+            echo "Artifact Registry API is not enabled. Attempting to enable..."
+            gcloud services enable artifactregistry.googleapis.com || echo "Warning: Could not enable Artifact Registry API. Please ensure it's enabled manually or the service account has necessary permissions."
+          fi
+          
+          # Verify access to Container Registry
+          echo "Verifying Container Registry access..."
           if ! gcloud container images list --repository=gcr.io/${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
             echo "Setting up Container Registry..."
-            gcloud container images list --repository=gcr.io/${{ secrets.GCP_PROJECT_ID }} >/dev/null 2>&1 || true
+            gcloud container images list --repository=gcr.io/${{ secrets.GCP_PROJECT_ID }} >/dev/null 2>&1 || echo "Warning: Could not access Container Registry. Please ensure the service account has necessary permissions."
           fi
+          
+          # Continue with the workflow even if API enabling fails
+          # The build steps will fail if the required access is not available
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v1
