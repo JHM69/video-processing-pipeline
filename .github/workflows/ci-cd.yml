@@ -10,8 +10,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GKE_CLUSTER: video-processor-cluster
   GKE_ZONE: us-central1
-  FRONTEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-frontend
-  BACKEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-backend
+  FRONTEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/video-processor/frontend
+  BACKEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/video-processor/backend
 
 jobs:
   test-and-build:
