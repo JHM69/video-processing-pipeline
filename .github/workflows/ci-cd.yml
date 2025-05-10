@@ -85,15 +85,13 @@ jobs:
 
       - name: Build Frontend Image
         run: |
-          docker build -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} \
-            -t ${{ env.FRONTEND_IMAGE }}:latest \
-            ./frontend
+          docker build -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} ./frontend
+          docker tag ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} ${{ env.FRONTEND_IMAGE }}:latest
 
       - name: Build Backend Image
         run: |
-          docker build -t ${{ env.BACKEND_IMAGE }}:${{ github.sha }} \
-            -t ${{ env.BACKEND_IMAGE }}:latest \
-            ./backend/src/video_processor
+          docker build -t ${{ env.BACKEND_IMAGE }}:${{ github.sha }} ./backend/src/video_processor
+          docker tag ${{ env.BACKEND_IMAGE }}:${{ github.sha }} ${{ env.BACKEND_IMAGE }}:latest
 
       - name: Push Frontend Image
         run: |
@@ -130,7 +128,7 @@ jobs:
 
       - name: Update Kubernetes Manifests
         run: |
-          # Update image tags in deployment files
+          # Update image tags in deployment files to use SHA tags for immutability
           sed -i "s|gcr.io/PROJECT_ID/video-processor-frontend:.*|${{ env.FRONTEND_IMAGE }}:${{ github.sha }}|" k8s/frontend.yaml
           sed -i "s|gcr.io/PROJECT_ID/video-processor-backend:.*|${{ env.BACKEND_IMAGE }}:${{ github.sha }}|" k8s/backend.yaml
 
@@ -138,8 +136,17 @@ jobs:
         run: |
           kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/redis.yaml
+          
+          # Delete old ReplicaSets to ensure clean deployment
+          kubectl delete rs -n video-processor -l app=frontend --cascade=false || true
+          kubectl delete rs -n video-processor -l app=backend --cascade=false || true
+          
           kubectl apply -f k8s/backend.yaml
           kubectl apply -f k8s/frontend.yaml
+          
+          # Wait for old pods to be terminated
+          kubectl wait --for=delete pod -l app=frontend -n video-processor --timeout=60s || true
+          kubectl wait --for=delete pod -l app=backend -n video-processor --timeout=60s || true
 
       - name: Verify Deployment
         run: |
@@ -151,6 +158,9 @@ jobs:
           
           echo "\nChecking pod events..."
           kubectl get events -n video-processor --sort-by='.lastTimestamp'
+          
+          # Add verification delays to allow for image pulls
+          sleep 30
           
           echo "\nWaiting for redis deployment..."
           kubectl wait --for=condition=ready pod -l app=redis --timeout=300s -n video-processor || {
@@ -170,6 +180,9 @@ jobs:
             kubectl describe pods -l app=frontend -n video-processor
             echo "\nChecking frontend deployment status:"
             kubectl describe deployment frontend -n video-processor
+            
+            echo "\nChecking image pull status:"
+            kubectl get pods -l app=frontend -n video-processor -o jsonpath='{.items[*].status.containerStatuses[*].imageID}'
             exit 1
           }
           

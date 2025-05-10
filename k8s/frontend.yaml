@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: gcr.io/experiment-456220/video-processor-frontend:latest
+        image: gcr.io/PROJECT_ID/video-processor-frontend:latest  # This will be replaced by CI/CD
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
         env:
