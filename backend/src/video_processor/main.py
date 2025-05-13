@@ -36,11 +36,31 @@ MAX_CONCURRENT_JOBS = 20
 
 # GCS Configuration
 BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'experiment-456220-videos')
-credentials_path = os.path.join(os.path.dirname(__file__), "experiment-456220-328a0f14d44e.json")
-storage_client = storage.Client()
+credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', os.path.join(os.path.dirname(__file__), "experiment-456220-328a0f14d44e.json"))
+
+print(f"Using credentials path: {credentials_path}")
+print(f"Credentials file exists: {os.path.exists(credentials_path)}")
 
 try:
+    # Try to create client from default credentials (works in production with mounted service account)
+    print("Attempting to create storage client using default credentials...")
+    storage_client = storage.Client()
+    print("Successfully created storage client using default credentials")
+except Exception as e:
+    print(f"Failed to create storage client using default credentials: {str(e)}")
+    try:
+        # Fallback to explicit credentials file (works in local development)
+        print("Attempting to create storage client using service account JSON...")
+        storage_client = storage.Client.from_service_account_json(credentials_path)
+        print("Successfully created storage client using service account JSON")
+    except Exception as e:
+        print(f"Error initializing GCS client with service account JSON: {str(e)}")
+        raise HTTPException(status_code=500, detail="Storage configuration error")
+
+try:
+    print(f"Attempting to access bucket: {BUCKET_NAME}")
     bucket = storage_client.get_bucket(BUCKET_NAME)
+    print(f"Successfully accessed bucket: {BUCKET_NAME}")
 except Exception as e:
     print(f"Error accessing bucket {BUCKET_NAME}: {str(e)}")
     raise HTTPException(status_code=500, detail="Storage configuration error")
