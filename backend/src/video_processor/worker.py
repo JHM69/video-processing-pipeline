@@ -69,7 +69,7 @@ except Exception as e:
     raise Exception("Storage configuration error")
 
 # Use proper temp directory for Windows
-TEMP_DIR = os.path.join(os.getenv('TEMP') or os.getenv('TMP') or 'C:\\Windows\\Temp', "video-processor")
+TEMP_DIR = "/tmp/video-processor" # Changed to Linux-compatible path
 os.makedirs(TEMP_DIR, exist_ok=True)
 print(f"[DEBUG] Using temp directory: {TEMP_DIR}")
 
