@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Video Processing Pipeline",
-  description: "Process videos in multiple resolutions across multi-cloud infrastructure",
+  description: "Process videos in multiple resolutions across Infinite infrastructure",
 };
 
 export default function RootLayout({

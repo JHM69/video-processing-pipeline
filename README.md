@@ -1,4 +1,4 @@
-# Multi-Cloud Video Processing Load Balancer
+# Infinite Video Processing Load Balancer
 
 A distributed video processing system deployed across multiple cloud providers (AWS and GCP) with intelligent load balancing.
 
@@ -40,7 +40,7 @@ This system implements a scalable video processing service that runs across AWS 
 - **Video Processor Service**: Rust-based service for video transcoding
 - **NGINX Load Balancer**: Distributes traffic between cloud providers
 - **Kubernetes Deployments**: Running on both AWS EKS and GCP GKE
-- **Infrastructure as Code**: Using Terraform for multi-cloud provisioning
+- **Infrastructure as Code**: Using Terraform for Infinite provisioning
 
 ## Infrastructure Setup
 
@@ -223,7 +223,7 @@ kubectl create secret generic cloud-credentials \
 
 ## Architecture Benefits
 
-- **High Availability**: Multi-cloud deployment prevents single cloud failure
+- **High Availability**: Infinite deployment prevents single cloud failure
 - **Geographic Distribution**: Lower latency for global users
 - **Cost Optimization**: Ability to leverage spot instances and preemptible VMs
 - **Scalability**: Independent scaling in each cloud

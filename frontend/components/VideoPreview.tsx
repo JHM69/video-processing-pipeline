@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { API_CONFIG } from "@/lib/config";
+import { motion } from "framer-motion";
 
 interface VideoPreviewProps {
   isOpen: boolean;
@@ -48,26 +49,41 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>Video Preview - {resolution}</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-4xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-2 border-gray-100 dark:border-gray-800 shadow-2xl">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Video Preview - {resolution}
+          </DialogTitle>
+          <DialogDescription className="text-lg text-gray-600 dark:text-gray-300">
             {videoName}
           </DialogDescription>
         </DialogHeader>
-        <div className="aspect-video relative bg-black rounded-lg overflow-hidden">
+        <motion.div 
+          className="aspect-video relative bg-black rounded-2xl overflow-hidden shadow-xl"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
           <video
             src={videoUrl}
             controls
             className="w-full h-full"
             autoPlay
           />
-        </div>
-        <div className="flex justify-end mt-4">
-          <Button onClick={handleDownload} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
+        </motion.div>
+        <div className="flex justify-end mt-6">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button 
+              onClick={handleDownload} 
+              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <Download className="h-5 w-5" />
+              Download
+            </Button>
+          </motion.div>
         </div>
       </DialogContent>
     </Dialog>

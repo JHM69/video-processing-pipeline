@@ -7,11 +7,11 @@ on:
     branches: [ main ]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: experiment-456220
   GKE_CLUSTER: video-processor-cluster
   GKE_ZONE: us-central1
-  FRONTEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-frontend
-  BACKEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/video-processor-backend
+  FRONTEND_IMAGE: gcr.io/experiment-456220/video-processor-frontend
+  BACKEND_IMAGE: gcr.io/experiment-456220/video-processor-backend
 
 jobs:
   test-and-build:
@@ -129,8 +129,8 @@ jobs:
       - name: Update Kubernetes Manifests
         run: |
           # Update image tags in deployment files to use SHA tags for immutability
-          sed -i "s|gcr.io/PROJECT_ID/video-processor-frontend:.*|${{ env.FRONTEND_IMAGE }}:${{ github.sha }}|" k8s/frontend.yaml
-          sed -i "s|gcr.io/PROJECT_ID/video-processor-backend:.*|${{ env.BACKEND_IMAGE }}:${{ github.sha }}|" k8s/backend.yaml
+          sed -i "s|gcr.io/experiment-456220/video-processor-frontend:.*|${{ env.FRONTEND_IMAGE }}:${{ github.sha }}|" k8s/frontend-deployment.yaml
+          sed -i "s|gcr.io/experiment-456220/video-processor-backend:.*|${{ env.BACKEND_IMAGE }}:${{ github.sha }}|" k8s/backend-deployment.yaml
 
       - name: Deploy to GKE
         run: |
@@ -141,84 +141,34 @@ jobs:
           kubectl delete rs -n video-processor -l app=frontend --cascade=false || true
           kubectl delete rs -n video-processor -l app=backend --cascade=false || true
           
-          kubectl apply -f k8s/backend.yaml
-          kubectl apply -f k8s/frontend.yaml
+          kubectl apply -f k8s/backend-deployment.yaml 
+          kubectl apply -f k8s/frontend-deployment.yaml
           
-          # Wait for old pods to be terminated
-          kubectl wait --for=delete pod -l app=frontend -n video-processor --timeout=60s || true
-          kubectl wait --for=delete pod -l app=backend -n video-processor --timeout=60s || true
+          # Wait for deployments to complete
+          kubectl rollout status deployment/frontend -n video-processor
+          kubectl rollout status deployment/backend -n video-processor
 
       - name: Verify Deployment
         run: |
           echo "Checking pod status..."
           kubectl get pods -n video-processor
           
-          echo "\nChecking pod logs for frontend..."
-          kubectl logs -l app=frontend -n video-processor --tail=50 || true
+          echo "Checking service status..."
+          kubectl get services -n video-processor
           
-          echo "\nChecking pod events..."
-          kubectl get events -n video-processor --sort-by='.lastTimestamp'
+          echo "Checking deployment status..."
+          kubectl get deployments -n video-processor
           
-          # Add verification delays to allow for image pulls
-          sleep 30
-          
-          echo "\nWaiting for redis deployment..."
-          kubectl wait --for=condition=ready pod -l app=redis --timeout=300s -n video-processor || {
-            echo "Redis pods not ready. Checking redis pods status:"
-            kubectl describe pods -l app=redis -n video-processor
-          }
-          
-          echo "\nWaiting for backend deployment..."
-          kubectl wait --for=condition=ready pod -l app=backend --timeout=300s -n video-processor || {
-            echo "Backend pods not ready. Checking backend pods status:"
-            kubectl describe pods -l app=backend -n video-processor
-          }
-          
-          echo "\nWaiting for frontend deployment..."
-          kubectl wait --for=condition=ready pod -l app=frontend --timeout=600s -n video-processor || {
-            echo "Frontend pods not ready. Checking frontend pods status:"
-            kubectl describe pods -l app=frontend -n video-processor
-            echo "\nChecking frontend deployment status:"
-            kubectl describe deployment frontend -n video-processor
-            
-            echo "\nChecking image pull status:"
-            kubectl get pods -l app=frontend -n video-processor -o jsonpath='{.items[*].status.containerStatuses[*].imageID}'
-            exit 1
-          }
-          
-          echo "All deployments verified successfully!"
-
       - name: Get Frontend Service Address
         if: success()
         run: |
-          echo "Checking frontend service configuration..."
-          kubectl describe service frontend -n video-processor
-          
-          echo "\nWaiting for Load Balancer to be ready..."
-          # Wait for Load Balancer to get external IP (timeout after 5 minutes)
+          echo "Waiting for Load Balancer IP..."
           for i in {1..30}; do
             FRONTEND_IP=$(kubectl get service frontend -n video-processor -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [ ! -z "$FRONTEND_IP" ]; then
+              echo "Frontend service is available at: $FRONTEND_IP"
               break
             fi
-            echo "Waiting for external IP... ($i/30)"
+            echo "Waiting for external IP... Attempt $i/30"
             sleep 10
           done
-
-          if [ -z "$FRONTEND_IP" ]; then
-            echo "::warning::Couldn't get LoadBalancer IP after 5 minutes"
-            echo "Current service status:"
-            kubectl get service frontend -n video-processor -o yaml
-          else
-            echo "Frontend is accessible at: http://$FRONTEND_IP"
-          fi
-          
-          # Also check for any Ingress
-          if kubectl get ingress -n video-processor &>/dev/null; then
-            echo "\nChecking Ingress configuration..."
-            kubectl describe ingress -n video-processor
-            INGRESS_HOST=$(kubectl get ingress -n video-processor -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
-            if [ ! -z "$INGRESS_HOST" ]; then
-              echo "Frontend is also accessible via Ingress at: http://$INGRESS_HOST"
-            fi
-          fi

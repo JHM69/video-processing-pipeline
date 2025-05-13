@@ -1,64 +1,66 @@
-import React from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  SelectGroup,
-  SelectLabel,
-} from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
-import { CheckCircle2, Upload, RefreshCw, Cloud } from "lucide-react";
-import { SUPPORTED_VIDEO_FORMATS, MAX_FILE_SIZE } from "@/lib/config";
+import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { RESOLUTIONS, CLOUD_PROVIDERS, SUPPORTED_VIDEO_FORMATS, MAX_FILE_SIZE } from "@/lib/constants";
 
 interface UploadFormProps {
   selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
   selectedResolutions: string[];
-  setSelectedResolutions: (resolutions: string[]) => void;
-  cloudProvider: string;
-  setCloudProvider: (provider: string) => void;
+  selectedCloudProvider: string;
   isLoading: boolean;
   uploadProgress: number;
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  isDragging: boolean;
-  handleDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
-  handleDrop: (e: React.DragEvent<HTMLDivElement>) => void;
-  handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelect: (file: File) => void;
+  onResolutionsChange: (resolutions: string[]) => void;
+  onCloudProviderSelect: (provider: string) => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 }
 
-export const UploadForm: React.FC<UploadFormProps> = ({
+export default function UploadForm({
   selectedFile,
-  setSelectedFile,
   selectedResolutions,
-  setSelectedResolutions,
-  cloudProvider,
-  setCloudProvider,
+  selectedCloudProvider,
   isLoading,
   uploadProgress,
-  handleSubmit,
-  isDragging,
-  handleDragOver,
-  handleDragLeave,
-  handleDrop,
-  handleFileChange,
-}) => {
+  onFileSelect,
+  onResolutionsChange,
+  onCloudProviderSelect,
+  onSubmit,
+}: UploadFormProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (validateFile(file)) {
+        onFileSelect(file);
+      }
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (validateFile(file)) {
+        onFileSelect(file);
+      }
+    }
+  };
+
   const validateFile = (file: File): boolean => {
-    if (!SUPPORTED_VIDEO_FORMATS.includes(file.type)) {
+    if (!SUPPORTED_VIDEO_FORMATS.includes(file.type as typeof SUPPORTED_VIDEO_FORMATS[number])) {
       toast.error('Unsupported file format. Please upload MP4, MOV, or AVI files.');
       return false;
     }
@@ -71,173 +73,191 @@ export const UploadForm: React.FC<UploadFormProps> = ({
     return true;
   };
 
+  const toggleResolution = (resolution: typeof RESOLUTIONS[number]) => {
+    if (selectedResolutions.includes(resolution)) {
+      onResolutionsChange(selectedResolutions.filter(r => r !== resolution));
+    } else {
+      onResolutionsChange([...selectedResolutions, resolution]);
+    }
+  };
+
   return (
-    <Card className="border-2 border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-xl">
-      <CardHeader>
-        <CardTitle className="text-2xl">Upload Video</CardTitle>
-        <CardDescription className="text-base">
-          Upload a video to process it in multiple resolutions across our
-          multi-cloud infrastructure
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-4">
-            <Label htmlFor="video" className="text-base">
-              Video File
-            </Label>
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-200 ${
-                isDragging
-                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                  : selectedFile
-                  ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                  : "border-gray-300 dark:border-gray-700 hover:border-blue-500"
-              }`}
-            >
-              <Input
-                id="video"
-                type="file"
-                accept="video/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <label
-                htmlFor="video"
-                className="cursor-pointer flex flex-col items-center gap-4"
-              >
-                <div
-                  className={`p-6 rounded-full ${
-                    selectedFile
-                      ? "bg-green-100 dark:bg-green-900/30"
-                      : "bg-gray-100 dark:bg-gray-800"
-                  }`}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
+    >
+      <div className="p-6">
+        <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Upload Video
+        </h2>
+        
+        <form onSubmit={onSubmit} className="space-y-6">
+          <div
+            className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${
+              isDragging
+                ? 'border-indigo-500 bg-indigo-50'
+                : selectedFile
+                ? 'border-green-500 bg-green-50'
+                : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              accept="video/mp4,video/quicktime,video/x-msvideo"
+              onChange={handleFileInput}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              aria-label="Upload video file"
+              title="Upload video file"
+            />
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center"
                 >
-                  {selectedFile ? (
-                    <CheckCircle2 className="h-12 w-12 text-green-500" />
-                  ) : (
-                    <Upload className="h-12 w-12 text-gray-500 dark:text-gray-400" />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <p className="text-lg font-medium">
-                    {selectedFile
-                      ? selectedFile.name
-                      : "Click to upload or drag and drop"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {selectedFile
-                      ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`
-                      : "MP4, MOV, or AVI up to 500MB"}
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <Label htmlFor="resolutions" className="text-base">
-              Output Resolutions
-            </Label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {["4K", "1080p", "720p", "480p", "360p", "240p"].map((res) => (
-                <div
-                  key={res}
-                  className="flex items-center space-x-2"
-                >
-                  <Checkbox
-                    id={res}
-                    checked={selectedResolutions.includes(res)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedResolutions([...selectedResolutions, res]);
-                      } else {
-                        setSelectedResolutions(
-                          selectedResolutions.filter((r) => r !== res)
-                        );
-                      }
-                    }}
-                  />
-                  <Label
-                    htmlFor={res}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  <svg
+                    className="w-8 h-8 text-indigo-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
-                    {res}
-                  </Label>
-                </div>
-              ))}
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                </motion.div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-lg font-medium text-gray-900">
+                  {selectedFile ? selectedFile.name : 'Drag and drop your video here'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {selectedFile
+                    ? `Size: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`
+                    : 'or click to browse (MP4, MOV, AVI up to 500MB)'}
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <Label htmlFor="cloud-provider" className="text-base">
-              Cloud Provider
-            </Label>
-            <Select
-              value={cloudProvider}
-              onValueChange={setCloudProvider}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a cloud provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Cloud Provider</SelectLabel>
-                  <SelectItem value="auto">
-                    <div className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4" />
-                      Auto (Load Balanced)
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="aws">
-                    <div className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4 text-orange-600" />
-                      AWS
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="gcp">
-                    <div className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4 text-blue-600" />
-                      Google Cloud
-                    </div>
-                  </SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {isLoading && (
+          {uploadProgress > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex justify-between text-sm text-gray-600">
                 <span>Uploading...</span>
                 <span>{Math.round(uploadProgress)}%</span>
               </div>
-              <Progress value={uploadProgress} className="h-2" />
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${uploadProgress}%` }}
+                  transition={{ duration: 0.3 }}
+                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                />
+              </div>
             </div>
           )}
 
-          <Button
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Output Resolutions
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {RESOLUTIONS.map((resolution) => (
+                  <motion.button
+                    key={resolution}
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => toggleResolution(resolution)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      selectedResolutions.includes(resolution)
+                        ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-200'
+                        : 'bg-gray-50 text-gray-600 border-2 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {resolution}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cloud Provider
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {CLOUD_PROVIDERS.map((provider) => (
+                  <motion.button
+                    key={provider}
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => onCloudProviderSelect(provider)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      selectedCloudProvider === provider
+                        ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-200'
+                        : 'bg-gray-50 text-gray-600 border-2 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {provider}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <motion.button
             type="submit"
-            className="w-full"
-            disabled={!selectedFile || selectedResolutions.length === 0 || isLoading}
+            disabled={!selectedFile || isLoading || selectedResolutions.length === 0}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className={`w-full py-3 px-4 rounded-lg text-white font-medium transition-all duration-200 ${
+              !selectedFile || isLoading || selectedResolutions.length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700'
+            }`}
           >
             {isLoading ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
+              <div className="flex items-center justify-center space-x-2">
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <span>Uploading...</span>
+              </div>
             ) : (
-              <>
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Video
-              </>
+              'Start Processing'
             )}
-          </Button>
+          </motion.button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </motion.div>
   );
-};
+}

@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: video-processor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend    
+    spec:
+      serviceAccountName: video-processor-sa
+      imagePullSecrets:
+      - name: gcr-json-key
+      containers:
+      - name: backend
+        image: gcr.io/experiment-456220/video-processor-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+          readOnly: true
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        - name: REDIS_HOST
+          value: 'redis'
+        - name: REDIS_PORT
+          value: '6379'
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: CORS_ORIGINS
+        - name: GCS_BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: GCS_BUCKET_NAME
+        resources:
+          limits:
+            cpu: '1'
+            memory: '2Gi'
+          requests:
+            cpu: '500m'
+            memory: '1Gi'
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: gcp-sa-key

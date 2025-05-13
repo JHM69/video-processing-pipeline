@@ -32,16 +32,18 @@ UPLOAD_DIR = os.path.abspath("videos")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Maximum number of concurrent jobs
-MAX_CONCURRENT_JOBS = 2
+MAX_CONCURRENT_JOBS = 20
 
 # GCS Configuration
-BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'video-processor-storage')
+BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'experiment-456220-videos')
+credentials_path = os.path.join(os.path.dirname(__file__), "experiment-456220-328a0f14d44e.json")
 storage_client = storage.Client()
 
 try:
     bucket = storage_client.get_bucket(BUCKET_NAME)
-except Exception:
-    bucket = storage_client.create_bucket(BUCKET_NAME)
+except Exception as e:
+    print(f"Error accessing bucket {BUCKET_NAME}: {str(e)}")
+    raise HTTPException(status_code=500, detail="Storage configuration error")
 
 # Temporary storage for upload processing
 TEMP_DIR = "/tmp/video-processor"
@@ -242,6 +244,7 @@ async def list_jobs(skip: int = 0, limit: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching jobs: {str(e)}")
 
+
 @app.get("/queue")
 async def get_queue_status():
     return {
@@ -271,10 +274,10 @@ async def download_video(job_id: str, resolution: str):
     if not blob.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
     
-    # Generate signed URL with 1 hour expiration
+    # Generate signed URL with 5-minute expiration
     signed_url = blob.generate_signed_url(
         version="v4",
-        expiration=timedelta(hours=1),
+        expiration=timedelta(minutes=5),
         method="GET"
     )
     

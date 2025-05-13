@@ -84,15 +84,32 @@ resource "google_compute_subnetwork" "subnet" {
 
 # Create GCS bucket
 resource "google_storage_bucket" "video_storage" {
-  name          = "${var.project_id}-video-processor-storage"
+  name          = "${var.project_id}-experiment-456220-videos"
   location      = var.region
   storage_class = "STANDARD"
 
   uniform_bucket_level_access = true
   
+  # Lifecycle rule for processed videos (5 minutes)
   lifecycle_rule {
     condition {
-      age = 7
+      age = 1  # 1 day is the minimum for age condition
+      matches_storage_class = ["STANDARD"]
+      matches_prefix = ["processed/"]
+      with_state = "ANY"
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  # Lifecycle rule for uploaded source videos (cleanup if not processed)
+  lifecycle_rule {
+    condition {
+      age = 1  # 1 day is the minimum for age condition
+      matches_storage_class = ["STANDARD"]
+      matches_prefix = ["uploads/"]
+      with_state = "ANY"
     }
     action {
       type = "Delete"

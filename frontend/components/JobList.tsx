@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { AnimatePresence, motion } from "framer-motion";
 import { Job } from "@/lib/types";
 import { VideoPreview } from "./VideoPreview";
-import { Download, Play } from "lucide-react";
+import { Download, Play, Video } from "lucide-react";
 import { API_CONFIG } from "@/lib/config";
 
 interface JobListProps {
@@ -64,14 +64,18 @@ export const JobList: React.FC<JobListProps> = ({ jobs, getStatusIcon, getCloudI
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {jobs.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full w-fit mx-auto mb-4">
-            {/* Icon can be passed as a prop if needed */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-16"
+        >
+          <div className="p-6 bg-gray-100 dark:bg-gray-800 rounded-2xl w-fit mx-auto mb-6">
+            <Video className="h-12 w-12 text-gray-400" />
           </div>
-          <p className="text-gray-500">No jobs found</p>
-        </div>
+          <p className="text-lg text-gray-500 dark:text-gray-400">No jobs found</p>
+        </motion.div>
       ) : (
         <AnimatePresence>
           {jobs.map((job) => (
@@ -80,26 +84,33 @@ export const JobList: React.FC<JobListProps> = ({ jobs, getStatusIcon, getCloudI
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="group"
             >
-              <Card className="border border-gray-100 dark:border-gray-800 hover:border-blue-500 transition-colors overflow-hidden">
-                <div className={`h-1 ${getStatusColor(job.status)}`}></div>
+              <Card className="border-2 border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-xl hover:shadow-2xl transition-all duration-300">
+                <div className={`h-1.5 ${getStatusColor(job.status)}`}></div>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-lg ${
-                        job.status === "completed" ? "bg-green-100 dark:bg-green-900/30" : 
-                        job.status === "processing" ? "bg-blue-100 dark:bg-blue-900/30" :
-                        "bg-red-100 dark:bg-red-900/30"
-                      }`}>
+                      <motion.div 
+                        className={`p-3 rounded-xl ${
+                          job.status === "completed" ? "bg-green-100 dark:bg-green-900/30" : 
+                          job.status === "processing" ? "bg-blue-100 dark:bg-blue-900/30" :
+                          "bg-red-100 dark:bg-red-900/30"
+                        }`}
+                        whileHover={{ scale: 1.05 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                      >
                         {getStatusIcon(job.status)}
-                      </div>
+                      </motion.div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-base">{job.name}</p>
+                        <div className="flex items-center gap-3">
+                          <p className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                            {job.id}
+                          </p>
                           {job.provider && getCloudIcon(job.provider)}
                         </div>
-                        <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mt-1">
                           <span>{new Date(job.createdAt).toLocaleString()}</span>
                           {job.size && <span>• {job.size}</span>}
                           {job.duration && job.duration !== '-' && (
@@ -116,55 +127,64 @@ export const JobList: React.FC<JobListProps> = ({ jobs, getStatusIcon, getCloudI
                       {job.status}
                     </div>
                   </div>
-                  {job.status === "processing" && job.progress !== undefined && (
-                    <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Processing...</span>
-                        <span>{Math.round(job.progress)}%</span>
+
+                  {job.status === "processing" && (
+                    <div className="mt-6 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium text-gray-600 dark:text-gray-300">Processing...</span>
+                        <span className="font-semibold">{Math.round(job.progress || 0)}%</span>
                       </div>
-                      <Progress value={job.progress} className="h-1" />
+                      <Progress value={job.progress || 0} className="h-2" />
                     </div>
                   )}
+
                   {job.error && (
-                    <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg">
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl"
+                    >
                       <p className="text-sm text-red-700 dark:text-red-400">{job.error}</p>
-                    </div>
+                    </motion.div>
                   )}
-                  {job.resolutions && job.resolutions.length > 0 && (
-                    <div className="mt-4">
-                      <div className="text-sm font-medium text-gray-500 mb-2">Available Resolutions:</div>
-                      <div className="flex flex-wrap gap-2">
+
+                  {job.status === "completed" && job.resolutions && job.resolutions.length > 0 && (
+                    <div className="mt-6">
+                      <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">
+                        Available Resolutions:
+                      </div>
+                      <div className="flex flex-wrap gap-3">
                         {job.resolutions.map((resolution) => (
-                          <div
+                          <motion.div
                             key={resolution}
-                            className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg"
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl"
+                            whileHover={{ scale: 1.02 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 10 }}
                           >
                             <span className="text-sm font-medium">{resolution}</span>
-                            {job.status === "completed" && (
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setPreviewJob({
-                                    jobId: job.id,
-                                    resolution,
-                                    videoName: job.name,
-                                  })}
-                                >
-                                  <Play className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => handleDownload(job.id, resolution, job.name)}
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                onClick={() => setPreviewJob({
+                                  jobId: job.id,
+                                  resolution,
+                                  videoName: job.name,
+                                })}
+                              >
+                                <Play className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                onClick={() => handleDownload(job.id, resolution, job.name)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </motion.div>
                         ))}
                       </div>
                     </div>
@@ -182,7 +202,7 @@ export const JobList: React.FC<JobListProps> = ({ jobs, getStatusIcon, getCloudI
           onClose={() => setPreviewJob(null)}
           jobId={previewJob.jobId}
           resolution={previewJob.resolution}
-          videoName={previewJob.videoName}
+          videoName={previewJob.jobId}
         />
       )}
     </div>
